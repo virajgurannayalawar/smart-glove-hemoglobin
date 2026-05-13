@@ -1,0 +1,18 @@
+# Role 1: AI Model
+ai-model/data/
+ai-model/weights/*.pt
+ai-model/weights/*.pth
+__pycache__/
+
+# Role 2: Cloud Backend
+cloud-backend/node_modules/
+cloud-backend/.env
+
+# Role 3: Mobile App
+mobile-app/.dart_tool/
+mobile-app/build/
+mobile-app/.packages
+
+# General
+.DS_Store
+*.log
