@@ -14,8 +14,9 @@ class UserCreate(BaseModel):
     gender: str
 
 class UserResponse(BaseModel):
-    id: str = Field(alias="_id", default="")
-    patientId: str = Field(alias="patient_id")
+    id: str = Field(validation_alias="_id", default="")
+    patientId: str = Field(validation_alias="patient_id")
+    #However, my backend code sent the JSON keys back as _id and patient_id. The Flutter app strictly expects the keys to be exactly id and patientId so i renamed them in the above two lines.#
     name: str
     email: str
     age: int

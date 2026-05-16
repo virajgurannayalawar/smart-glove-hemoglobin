@@ -45,11 +45,12 @@ async def login(login_req: LoginRequest):
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["patient_id"]}, expires_delta=access_token_expires
+        data={"sub": user["patient_id"]}, expires_delta=access_token_expires 
+        #However, my backend code sent the JSON keys back as _id and patient_id. The Flutter app strictly expects the keys to be exactly id and patientId so i renamed them
     )
     
     user["_id"] = str(user["_id"])
     return {
         "token": access_token,
-        "user": UserResponse(**user).model_dump(by_alias=True)
+        "user": UserResponse(**user).model_dump()
     }
