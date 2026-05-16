@@ -5,7 +5,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.services.db import connect_to_mongo, close_mongo_connection
-from app.api.routes import auth, upload, history
+from app.api.routes import auth, upload, history, profile
 from app.utils.rate_limit import limiter
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Include routers
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["auth"])
+app.include_router(profile.router, prefix=f"{settings.API_V1_STR}/profile", tags=["profile"])
 app.include_router(upload.router, prefix=f"{settings.API_V1_STR}/upload", tags=["upload"])
 app.include_router(history.router, prefix=f"{settings.API_V1_STR}/history", tags=["history"])
 

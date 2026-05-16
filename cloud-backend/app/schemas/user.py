@@ -2,6 +2,10 @@ from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 from typing import Optional
 
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 class UserCreate(BaseModel):
     name: str = Field(..., min_length=1)
     email: EmailStr
@@ -10,14 +14,18 @@ class UserCreate(BaseModel):
     gender: str
 
 class UserResponse(BaseModel):
-    patient_id: str
+    id: str = Field(alias="_id", default="")
+    patientId: str = Field(alias="patient_id")
     name: str
     email: str
     age: int
     gender: str
-    is_active: bool
-    created_at: datetime
+    is_active: bool = True
+    created_at: datetime = None
     
+    class Config:
+        populate_by_name = True
+
 class Token(BaseModel):
     access_token: str
     token_type: str
