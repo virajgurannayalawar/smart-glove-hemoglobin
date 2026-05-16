@@ -74,4 +74,36 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Left(CacheFailure('Failed to read cached user'));
     }
   }
+
+  @override
+  Future<Either<Failure, User>> register({
+    required String name,
+    required String email,
+    required String password,
+    required int age,
+    required String gender,
+  }) async {
+    try {
+      final response = await dio.post('/auth/register', data: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'age': age,
+        'gender': gender,
+      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Right(User.fromJson(response.data));
+      } else {
+        return Left(ServerFailure(response.data['detail'] ?? 'Registration failed'));
+      }
+    } on DioException catch (e) {
+      if (e.response != null) {
+        return Left(ServerFailure(e.response?.data['detail'] ?? 'Registration failed'));
+      }
+      return const Left(NetworkFailure('Network connection failed'));
+    } catch (e) {
+      return const Left(ServerFailure('An unexpected error occurred'));
+    }
+  }
 }

@@ -1,15 +1,15 @@
 name: smart_glove
 description: "Cloud-Based Smart Glove Anemia Detection mobile app."
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.0+1
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
   flutter:
     sdk: flutter
-  
+
   # UI & Styling
   cupertino_icons: ^1.0.6
   google_fonts: ^6.1.0
@@ -27,7 +27,7 @@ dependencies:
   # Local Storage
   flutter_secure_storage: ^9.0.0
   hive_flutter: ^1.1.0
-  
+
   # Models & JSON Generation
   json_annotation: ^4.8.1
   freezed_annotation: ^2.4.1
@@ -42,12 +42,12 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  
+
   flutter_lints: ^3.0.0
-  
+
   # Testing
   mockito: ^5.4.4
-  
+
   # Code Generation
   build_runner: ^2.4.9
   freezed: ^2.5.2

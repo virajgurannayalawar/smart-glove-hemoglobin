@@ -1,50 +1,73 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import '../providers/auth_provider.dart';
+import '../../data/repositories/auth_repository_impl.dart';
 
-class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+class SignupScreen extends ConsumerStatefulWidget {
+  const SignupScreen({super.key});
 
   @override
-  ConsumerState<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<SignupScreen> createState() => _SignupScreenState();
 }
 
-class _LoginScreenState extends ConsumerState<LoginScreen> {
+class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _rememberMe = false;
+  final _ageController = TextEditingController();
+
+  String _selectedGender = 'Male';
   bool _obscurePassword = true;
+  bool _isLoading = false;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
   void _submit() async {
     if (_formKey.currentState!.validate()) {
-      // Store remember me preference
-      const secureStorage = FlutterSecureStorage();
-      await secureStorage.write(key: 'remember_me', value: _rememberMe.toString());
+      setState(() {
+        _isLoading = true;
+      });
 
-      final success = await ref.read(authNotifierProvider.notifier).login(
-            _emailController.text.trim(),
-            _passwordController.text,
-          );
+      final authRepository = ref.read(authRepositoryProvider);
+      final result = await authRepository.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+        age: int.parse(_ageController.text.trim()),
+        gender: _selectedGender,
+      );
 
-      if (success && mounted) {
-        context.go('/dashboard');
-      } else if (mounted) {
-        final error = ref.read(authNotifierProvider).errorMessage;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error ?? 'Login failed'),
-            backgroundColor: Colors.red,
-          ),
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        result.fold(
+          (failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(failure.message),
+                backgroundColor: Colors.red,
+              ),
+            );
+          },
+          (user) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Account created! Please log in.'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            context.go('/login');
+          },
         );
       }
     }
@@ -52,8 +75,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isLoading = ref.watch(authNotifierProvider).isLoading;
-
     return Scaffold(
       backgroundColor: Colors.grey[50],
       body: SafeArea(
@@ -68,12 +89,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 children: [
                   const Icon(
                     Icons.health_and_safety,
-                    size: 80,
+                    size: 60,
                     color: Color(0xFF0D47A1), // Deep navy
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
                   const Text(
-                    'Smart Glove',
+                    'Create Account',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
@@ -82,16 +103,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       fontFamily: 'Poppins',
                     ),
                   ),
-                  const Text(
-                    'Anemia Detection System',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                      fontFamily: 'Inter',
+                  const SizedBox(height: 32),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      labelText: 'Name',
+                      prefixIcon: const Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your name';
+                      }
+                      return null;
+                    },
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
@@ -103,7 +132,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (value == null || value.trim().isEmpty) {
                         return 'Please enter your email';
                       }
                       if (!value.contains('@')) {
@@ -137,29 +166,68 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your password';
                       }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
+                      if (value.length < 8) {
+                        return 'Password must be at least 8 characters';
                       }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        onChanged: (value) {
-                          setState(() {
-                            _rememberMe = value ?? false;
-                          });
-                        },
+                      Expanded(
+                        child: TextFormField(
+                          controller: _ageController,
+                          keyboardType: TextInputType.number,
+                          decoration: InputDecoration(
+                            labelText: 'Age',
+                            prefixIcon: const Icon(Icons.calendar_today_outlined),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Required';
+                            }
+                            if (int.tryParse(value.trim()) == null) {
+                              return 'Invalid age';
+                            }
+                            return null;
+                          },
+                        ),
                       ),
-                      const Text('Remember me'),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          value: _selectedGender,
+                          decoration: InputDecoration(
+                            labelText: 'Gender',
+                            prefixIcon: const Icon(Icons.people_outline),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          items: ['Male', 'Female', 'Other']
+                              .map((label) => DropdownMenuItem(
+                                    value: label,
+                                    child: Text(label),
+                                  ))
+                              .toList(),
+                          onChanged: (value) {
+                            if (value != null) {
+                              setState(() {
+                                _selectedGender = value;
+                              });
+                            }
+                          },
+                        ),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   ElevatedButton(
-                    onPressed: isLoading ? null : _submit,
+                    onPressed: _isLoading ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D47A1),
                       foregroundColor: Colors.white,
@@ -168,7 +236,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: isLoading
+                    child: _isLoading
                         ? const SizedBox(
                             height: 20,
                             width: 20,
@@ -178,7 +246,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           )
                         : const Text(
-                            'Login',
+                            'Register',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -188,10 +256,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 16),
                   TextButton(
                     onPressed: () {
-                      context.go('/signup');
+                      if (!_isLoading) {
+                        context.go('/login');
+                      }
                     },
                     child: const Text(
-                      'Don\'t have an account? Sign up',
+                      'Already have an account? Log in',
                       style: TextStyle(
                         color: Color(0xFF0D47A1),
                         fontWeight: FontWeight.bold,
