@@ -6,15 +6,18 @@ from app.core.config import settings
 from app.schemas.user import TokenData
 from app.services.db import get_database
 
+
+#catching the jwt token
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
 
+#when fastapi see depends then it  stop and execute first which is enclosed inside it 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        patient_id: str = payload.get("sub")
-        if patient_id is None:
+        owner_id: str = payload.get("sub")
+        if owner_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
-        token_data = TokenData(patient_id=patient_id)
+        token_data = TokenData(owner_id=owner_id)
     except (jwt.ExpiredSignatureError, jwt.PyJWTError, ValidationError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -23,7 +26,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         )
         
     db = get_database()
-    user = await db.users.find_one({"patient_id": token_data.patient_id})
+    user = await db.users.find_one({"owner_id": token_data.owner_id})
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return user

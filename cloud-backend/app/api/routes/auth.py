@@ -5,6 +5,7 @@ from app.services.db import get_database
 from datetime import timedelta, datetime, timezone
 from app.core.config import settings
 import uuid
+import secrets
 
 router = APIRouter()
 
@@ -15,16 +16,19 @@ async def register(user_in: UserCreate):
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
         
-    patient_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
     hashed_password = get_password_hash(user_in.password)
+    glove_api_key = secrets.token_urlsafe(32)
     
     user_doc = {
-        "patient_id": patient_id,
+        "owner_id": user_id,
         "email": user_in.email,
         "name": user_in.name,
         "age": user_in.age,
         "gender": user_in.gender,
+        "contact_number": user_in.contact_number,
         "hashed_password": hashed_password,
+        "glove_api_key": glove_api_key,
         "is_active": True,
         "created_at": datetime.now(timezone.utc)
     }
@@ -45,7 +49,7 @@ async def login(login_req: LoginRequest):
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["patient_id"]}, expires_delta=access_token_expires 
+        data={"sub": user["owner_id"]}, expires_delta=access_token_expires 
         #However, my backend code sent the JSON keys back as _id and patient_id. The Flutter app strictly expects the keys to be exactly id and patientId so i renamed them
     )
     
