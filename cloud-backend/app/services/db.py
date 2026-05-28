@@ -33,8 +33,12 @@ async def connect_to_mongo():
     # Initialize indexes
     database = db.client[settings.DATABASE_NAME]
     try:
-        # Create unique index on owner_id for users collection
-        await database.users.create_index("owner_id", unique=True)
+        # Create unique index on owner_id for users collection, but ignore null/absent owner_id values
+        await database.users.create_index(
+            "owner_id",
+            unique=True,
+            partialFilterExpression={"owner_id": {"$exists": True, "$ne": None}},
+        )
         await database.users.create_index("glove_api_key", unique=True, sparse=True)
         await database.scan_sessions.create_index("scan_id", unique=True)
         await database.scan_sessions.create_index([("owner_id", 1), ("created_at", -1)])
