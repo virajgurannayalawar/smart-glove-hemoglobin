@@ -32,9 +32,9 @@ ALLOWED_IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "application/octet-str
 MAX_DECRYPTED_BYTES = 10 * 1024 * 1024
 
 
-@router.get("/owner-id")
-async def get_owner_id(current_user: dict = Depends(get_current_active_user)):
-    return {"owner_id": current_user.get("owner_id")}
+@router.get("/OwnerId")
+async def get_OwnerId(current_user: dict = Depends(get_current_active_user)):
+    return {"OwnerId": current_user.get("OwnerId")}
 
 
 @router.get("/glove-key")
@@ -43,13 +43,13 @@ async def get_glove_key(current_user: dict = Depends(get_current_active_user)):
     Returns the current glove API key for this owner.
     Use this during provisioning (send to Raspberry Pi over BLE).
     """
-    key = current_user.get("glove_api_key")
+    key = current_user.get("GloveApiKey")
     if not key:
         # Backfill for older users created before glove key existed.
         db = get_database()
         key = secrets.token_urlsafe(32)
-        await db.users.update_one({"_id": current_user["_id"]}, {"$set": {"glove_api_key": key}})
-    return {"glove_api_key": key}
+        await db.users.update_one({"_id": current_user["_id"]}, {"$set": {"GloveApiKey": key}})
+    return {"GloveApiKey": key}
 
 
 @router.post("/glove-key/rotate")
@@ -60,8 +60,8 @@ async def rotate_glove_key(current_user: dict = Depends(get_current_active_user)
     """
     db = get_database()
     new_key = secrets.token_urlsafe(32)
-    await db.users.update_one({"_id": current_user["_id"]}, {"$set": {"glove_api_key": new_key}})
-    return {"glove_api_key": new_key}
+    await db.users.update_one({"_id": current_user["_id"]}, {"$set": {"GloveApiKey": new_key}})
+    return {"GloveApiKey": new_key}
 
 
 @router.post("/sessions", response_model=ScanSessionResponse)
@@ -71,115 +71,116 @@ async def create_scan_session(
     current_user: dict = Depends(get_current_active_user),
 ):
     db = get_database()
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
 
-    patient = await db.patients.find_one({"patient_id": payload.patient_id})
+    patient = await db.patients.find_one({"PatientId": payload.PatientId})
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    if patient.get("owner_id") != owner_id:
+    if patient.get("OwnerId") != OwnerId:
         raise HTTPException(status_code=403, detail="Not authorized for this patient")
 
     session = await scan_session_store.create_session(
-        owner_id=owner_id,
-        patient_id=payload.patient_id,
-        is_pregnant=payload.is_pregnant,
+        OwnerId=OwnerId,
+        PatientId=payload.PatientId,
+        is_pregnant=payload.IsPregnant,
         ttl_seconds=120,
     )
 
     await record_scan_event(
-        scan_id=session.scan_id,
-        owner_id=owner_id,
-        patient_id=payload.patient_id,
+        ScanId=session.ScanId,
+        OwnerId=OwnerId,
+        PatientId=payload.PatientId,
         event="session_created",
         request_id=getattr(request.state, "request_id", None),
         detail={"ttl_seconds": 120},
     )
 
     return ScanSessionResponse(
-        scan_id=session.scan_id,
-        owner_id=session.owner_id,
-        patient_id=session.patient_id,
-        is_pregnant=session.is_pregnant,
-        status=session.status,
-        created_at=session.created_at,
-        expires_at=session.expires_at,
+        ScanId=session.ScanId,
+        OwnerId=session.OwnerId,
+        PatientId=session.PatientId,
+        IsPregnant=session.IsPregnant,
+        Status=session.Status,
+        CreatedAt=session.CreatedAt,
+        ExpiresAt=session.ExpiresAt,
     )
 
 
-@router.get("/sessions/{scan_id}/result", response_model=ScanResultResponse)
+@router.get("/sessions/{ScanId}/result", response_model=ScanResultResponse)
 @limiter.limit("60/minute")
 async def get_scan_result(
     request: Request,
-    scan_id: str,
+    ScanId: str,
     timeout_seconds: int = 30,
     current_user: dict = Depends(get_current_active_user),
 ):
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
     request_id = getattr(request.state, "request_id", None)
-    session = await scan_session_store.get(scan_id)
+    session = await scan_session_store.get(ScanId)
     if not session:
         raise HTTPException(status_code=404, detail="Scan session not found")
-    if session.owner_id != owner_id:
+    if session.OwnerId != OwnerId:
         raise HTTPException(status_code=403, detail="Not authorized for this scan session")
 
-    session = await scan_session_store.expire_if_needed(scan_id)
+    session = await scan_session_store.expire_if_needed(ScanId)
     if not session:
         raise HTTPException(status_code=404, detail="Scan session not found")
 
-    if session.status == "pending":
+    if session.Status == "pending":
         await record_scan_event(
-            scan_id=scan_id,
-            owner_id=owner_id,
-            patient_id=session.patient_id,
+            ScanId=ScanId,
+            OwnerId=OwnerId,
+            PatientId=session.PatientId,
             event="result_long_poll_started",
             request_id=request_id,
             detail={"timeout_seconds": timeout_seconds},
         )
         try:
-            await asyncio.wait_for(session.event.wait(), timeout=timeout_seconds)
+            await asyncio.wait_for(session.Event.wait(), timeout=timeout_seconds)
         except asyncio.TimeoutError:
             await record_scan_event(
-                scan_id=scan_id,
-                owner_id=owner_id,
-                patient_id=session.patient_id,
+                ScanId=ScanId,
+                OwnerId=OwnerId,
+                PatientId=session.PatientId,
                 event="result_long_poll_timeout",
                 request_id=request_id,
                 detail={"timeout_seconds": timeout_seconds},
             )
-            return ScanResultResponse(scan_id=scan_id, status="pending")
+            return ScanResultResponse(ScanId=ScanId, Status="pending")
 
-    session = await scan_session_store.expire_if_needed(scan_id)
+    session = await scan_session_store.expire_if_needed(ScanId)
     if not session:
         raise HTTPException(status_code=404, detail="Scan session not found")
 
-    if session.status != "completed":
-        return ScanResultResponse(scan_id=scan_id, status=session.status, error=session.error)
+    if session.Status != "completed":
+        return ScanResultResponse(ScanId=ScanId, Status=session.Status, Error=session.Error)
 
-    result = session.result or {}
+    result = session.Result or {}
     return ScanResultResponse(
-        scan_id=scan_id,
-        status="completed",
-        hemoglobin_level=result.get("hemoglobin_level"),
-        is_anemic=result.get("is_anemic"),
-        status_text=result.get("status_text"),
-        reading_id=result.get("reading_id"),
-        true_timestamp=result.get("true_timestamp"),
-        image_url=result.get("image_url"),
-        error=session.error,
+        ScanId=ScanId,
+        Status="completed",
+        HemoglobinLevel=result.get("HemoglobinLevel"),
+        IsAnemic=result.get("IsAnemic"),
+        StatusText=result.get("StatusText"),
+        ReadingId=result.get("ReadingId"),
+        TrueTimestamp=result.get("TrueTimestamp"),
+        ImageUrl=result.get("ImageUrl"),
+        Error=session.Error,
     )
 
 
-@router.post("/sessions/{scan_id}/upload")
+@router.post("/sessions/{ScanId}/upload")
 @limiter.limit("100/minute")
 async def glove_upload_for_session(
     request: Request,
-    scan_id: str,
+    ScanId: str,
     image: UploadFile = File(...),
     metadata: str = Form(...),
 ):
     """
     New workflow: glove uploads without JWT.
-    Validation is based on owner_id provisioned to the glove + active scan session.
+    Validation is based on OwnerId provisioned to the glove + active scan session.
+
     """
     try:
         meta = GloveUploadMetadata.model_validate_json(metadata)
@@ -191,38 +192,38 @@ async def glove_upload_for_session(
         raise HTTPException(status_code=401, detail="Missing glove authentication header: X-Glove-Key")
     request_id = getattr(request.state, "request_id", None)
 
-    session = await scan_session_store.get(scan_id)
+    session = await scan_session_store.get(ScanId)
     if not session:
         raise HTTPException(status_code=404, detail="Scan session not found")
 
-    session = await scan_session_store.expire_if_needed(scan_id)
+    session = await scan_session_store.expire_if_needed(ScanId)
     if not session:
         raise HTTPException(status_code=404, detail="Scan session not found")
-    if session.status != "pending":
-        raise HTTPException(status_code=409, detail=f"Scan session already {session.status}")
+    if session.Status != "pending":
+        raise HTTPException(status_code=409, detail=f"Scan session already {session.Status}")
 
-    if meta.owner_id != session.owner_id:
+    if meta.OwnerId != session.OwnerId:
         raise HTTPException(status_code=403, detail="Owner ID does not match scan session")
-    if meta.patient_id != session.patient_id:
+    if meta.PatientId != session.PatientId:
         raise HTTPException(status_code=403, detail="Patient ID does not match scan session")
 
-    db = get_database()
-    owner = await db.users.find_one({"owner_id": meta.owner_id})
+    db = get_database() 
+    owner = await db.users.find_one({"OwnerId": meta.OwnerId})
     if not owner:
         raise HTTPException(status_code=404, detail="Owner not found")
-    if owner.get("glove_api_key") != glove_key:
+    if owner.get("GloveApiKey") != glove_key:
         raise HTTPException(status_code=401, detail="Invalid glove API key")
 
-    patient = await db.patients.find_one({"patient_id": meta.patient_id})
+    patient = await db.patients.find_one({"PatientId": meta.PatientId})
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
-    if patient.get("owner_id") != meta.owner_id:
+    if patient.get("OwnerId") != meta.OwnerId:
         raise HTTPException(status_code=403, detail="Patient does not belong to this owner")
 
     await record_scan_event(
-        scan_id=scan_id,
-        owner_id=meta.owner_id,
-        patient_id=meta.patient_id,
+        ScanId=ScanId,
+        OwnerId=meta.OwnerId,
+        PatientId=meta.PatientId,
         event="glove_upload_received",
         request_id=request_id,
         detail={"content_type": image.content_type, "filename": image.filename},
@@ -245,9 +246,9 @@ async def glove_upload_for_session(
         raise HTTPException(status_code=400, detail="Failed to process image payload")
 
     await record_scan_event(
-        scan_id=scan_id,
-        owner_id=meta.owner_id,
-        patient_id=meta.patient_id,
+        ScanId=ScanId,
+        OwnerId=meta.OwnerId,
+        PatientId=meta.PatientId,
         event="image_decrypted",
         request_id=request_id,
         detail={"encrypted_bytes": len(image_bytes), "decrypted_bytes": len(decrypted)},
@@ -263,104 +264,104 @@ async def glove_upload_for_session(
             logger.exception("Unexpected image processing failure")
             raise HTTPException(status_code=500, detail="Image processing failed")
         await record_scan_event(
-            scan_id=scan_id,
-            owner_id=meta.owner_id,
-            patient_id=meta.patient_id,
+            ScanId=ScanId,
+            OwnerId=meta.OwnerId,
+            PatientId=meta.PatientId,
             event="image_preprocessed",
             request_id=request_id,
             detail={"processed_bytes": len(processed_bytes), "model_image_size": settings.MODEL_IMAGE_SIZE},
         )
 
     now_unix = int(time.time())
-    offset = meta.sync_timestamp - meta.capture_timestamp
+    offset = meta.SyncTimestamp - meta.CaptureTimestamp
     if offset < 0:
         offset = 0
     true_ts_unix = now_unix - offset
     true_timestamp = datetime.fromtimestamp(true_ts_unix, tz=timezone.utc)
 
-    public_id = f"smart-glove/{meta.owner_id}/{meta.patient_id}/{uuid.uuid4()}"
+    public_id = f"smart-glove/{meta.OwnerId}/{meta.PatientId}/{uuid.uuid4()}"
     try:
         uploaded_url = storage_service.upload_file(decrypted, public_id)
     except Exception:
         logger.exception("Cloud upload failed")
         raise HTTPException(status_code=500, detail="Failed to upload image to storage")
     await record_scan_event(
-        scan_id=scan_id,
-        owner_id=meta.owner_id,
-        patient_id=meta.patient_id,
+        ScanId=ScanId,
+        OwnerId=meta.OwnerId,
+        PatientId=meta.PatientId,
         event="image_uploaded",
         request_id=request_id,
-        detail={"image_public_id": uploaded_url},
+        detail={"ImagePublicId": uploaded_url},
     )
 
     try:
         prediction = await predict_hemoglobin_from_image(processed_bytes)
-        hb_level = float(prediction.hemoglobin_level)
+        hb_level = float(prediction.HemoglobinLevel)
     except ModelPredictionError as e:
-        await scan_session_store.fail(scan_id, f"Model prediction failed: {e}")
+        await scan_session_store.fail(ScanId, f"Model prediction failed: {e}")
         raise HTTPException(status_code=502, detail=f"Model prediction failed: {e}")
     except Exception:
         logger.exception("Unexpected model prediction failure")
-        await scan_session_store.fail(scan_id, "Model prediction failed")
+        await scan_session_store.fail(ScanId, "Model prediction failed")
         raise HTTPException(status_code=500, detail="Model prediction failed")
     await record_scan_event(
-        scan_id=scan_id,
-        owner_id=meta.owner_id,
-        patient_id=meta.patient_id,
+        ScanId=ScanId,
+        OwnerId=meta.OwnerId,
+        PatientId=meta.PatientId,
         event="model_predicted",
         request_id=request_id,
-        detail={"hemoglobin_level": hb_level},
+        detail={"HemoglobinLevel": hb_level},
     )
 
-    patient_age = int(patient.get("age", 0))
-    patient_gender = patient.get("gender", "female")
-    anemic_flag = is_anemic(hb_level, patient_age, patient_gender, meta.is_pregnant)
+    patient_age = int(patient.get("Age", 0))
+    patient_gender = patient.get("Gender", "female")
+    anemic_flag = is_anemic(hb_level, patient_age, patient_gender, meta.IsPregnant)
     status_text = "Anemic" if anemic_flag else "Normal"
 
     reading_doc = {
-        "reading_id": str(uuid.uuid4()),
-        "owner_id": meta.owner_id,
-        "patient_id": meta.patient_id,
-        "patient_age": patient_age,
-        "patient_gender": patient_gender,
-        "is_pregnant": bool(meta.is_pregnant),
-        "hemoglobin_level": hb_level,
-        "true_timestamp": true_timestamp,
-        "edge_capture_timestamp": meta.capture_timestamp,
-        "image_url": uploaded_url,
-        "is_anemic": anemic_flag,
-        "status_text": status_text,
-        "created_at": datetime.now(timezone.utc),
+        "ReadingId": str(uuid.uuid4()),
+        "OwnerId": meta.OwnerId,
+        "PatientId": meta.PatientId,
+        "PatientAge": patient_age,
+        "PatientGender": patient_gender,
+        "IsPregnant": bool(meta.IsPregnant),
+        "HemoglobinLevel": hb_level,
+        "TrueTimestamp": true_timestamp,
+        "EdgeCaptureTimestamp": meta.CaptureTimestamp,
+        "ImageUrl": uploaded_url,
+        "IsAnemic": anemic_flag,
+        "StatusText": status_text,
+        "CreatedAt": datetime.now(timezone.utc),
     }
     await db.hemoglobin_readings.insert_one(reading_doc)
     await record_scan_event(
-        scan_id=scan_id,
-        owner_id=meta.owner_id,
-        patient_id=meta.patient_id,
+        ScanId=ScanId,
+        OwnerId=meta.OwnerId,
+        PatientId=meta.PatientId,
         event="reading_persisted",
         request_id=request_id,
-        detail={"reading_id": reading_doc["reading_id"]},
+        detail={"ReadingId": reading_doc["ReadingId"]},
     )
 
     await scan_session_store.complete(
-        scan_id,
+        ScanId,
         {
-            "hemoglobin_level": hb_level,
-            "is_anemic": anemic_flag,
-            "status_text": status_text,
-            "reading_id": reading_doc["reading_id"],
-            "true_timestamp": true_timestamp.isoformat(),
-            "image_url": uploaded_url,
+            "HemoglobinLevel": hb_level,
+            "IsAnemic": anemic_flag,
+            "StatusText": status_text,
+            "ReadingId": reading_doc["ReadingId"],
+            "TrueTimestamp": true_timestamp.isoformat(),
+            "ImageUrl": uploaded_url,
         },
     )
     await record_scan_event(
-        scan_id=scan_id,
-        owner_id=meta.owner_id,
-        patient_id=meta.patient_id,
+        ScanId=ScanId,
+        OwnerId=meta.OwnerId,
+        PatientId=meta.PatientId,
         event="session_completed",
         request_id=request_id,
-        detail={"status_text": status_text, "is_anemic": anemic_flag},
+        detail={"StatusText": status_text, "IsAnemic": anemic_flag},
     )
 
-    return {"message": "Upload successful", "scan_id": scan_id, "reading_id": reading_doc["reading_id"]}
+    return {"message": "Upload successful", "ScanId": ScanId, "reading_id": reading_doc["ReadingId"]}
 

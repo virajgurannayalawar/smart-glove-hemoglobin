@@ -64,8 +64,10 @@ def root():
 @app.get("/health")
 async def health():
     """
+
     Basic health endpoint for container orchestration.
     Checks that Mongo is reachable.
+    
     """
     try:
         if not db_state.client:

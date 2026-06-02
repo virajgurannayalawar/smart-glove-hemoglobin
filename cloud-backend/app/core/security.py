@@ -42,7 +42,8 @@ def decrypt_image_payload(encrypted_data: bytes) -> bytes:
         raise ValueError("Invalid ciphertext length")
     
     # Ensure key is 32 bytes for AES-256
-    key = settings.AES_SECRET_KEY.encode('utf-8')[:32].ljust(32, b'\0')
+    AES_SECRET_KEY=settings.AES_SECRET_KEY
+    key = bytes.fromhex(AES_SECRET_KEY)
     
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     decryptor = cipher.decryptor()

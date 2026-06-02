@@ -3,14 +3,14 @@ from datetime import datetime
 from typing import Optional
 
 class UploadMetadata(BaseModel):
-    hemoglobin_level: Optional[float] = Field(
+    HemoglobinLevel: Optional[float] = Field(
         default=None,
         description="Optional hemoglobin level. Prefer backend model prediction in new workflow.",
     )
-    capture_timestamp: int = Field(..., description="Unix timestamp when image was captured on edge device")
-    sync_timestamp: int = Field(..., description="Unix timestamp when the sync process started on edge device")
-    patient_id: str = Field(..., description="Which patient was scanned")
-    is_pregnant: bool = Field(False, description="Is patient pregnant for anemia calc?")
+    CaptureTimestamp: int = Field(..., description="Unix timestamp when image was captured on edge device")
+    SyncTimestamp: int = Field(..., description="Unix timestamp when the sync process started on edge device")
+    PatientId: str = Field(..., description="Which patient was scanned")
+    IsPregnant: bool = Field(False, description="Is patient pregnant for anemia calc?")
 
 class HistoryResponse(BaseModel):
     id: str = Field(alias="_id", default="")

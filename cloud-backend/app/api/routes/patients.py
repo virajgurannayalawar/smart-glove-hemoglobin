@@ -20,25 +20,25 @@ async def registser_patient(patient_data: PatientCreate,
     
     db = get_database()
 
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
     
     # Check if email already exists for this owner
     existing_patient = await db.patients.find_one(
-        {"owner_id": owner_id, "email": patient_data.email}
+        {"OwnerId": OwnerId, "Email": patient_data.Email}
     )
     if existing_patient:
         raise HTTPException(status_code=409, detail="Email already registered for this owner")
     patient_id = str(uuid.uuid4())  # Unique ID for this patient
     patient_doc = {
-        "patient_id": patient_id,
-        "owner_id": owner_id,
-        "name": patient_data.name,
-        "age": patient_data.age,
-        "gender": patient_data.gender,
-        "contact_number": patient_data.contact_number,
-        "email": patient_data.email,
-        "notes": patient_data.notes,
-        "created_at": datetime.now(timezone.utc)
+        "PatientId": patient_id,
+        "OwnerId": OwnerId,
+        "Name": patient_data.Name,
+        "Age": patient_data.Age,
+        "Gender": patient_data.Gender,
+        "ContactNumber": patient_data.ContactNumber,
+        "Email": patient_data.Email,
+        "Notes": patient_data.Notes,
+        "CreatedAt": datetime.now(timezone.utc)
     }
     result = await db.patients.insert_one(patient_doc)
     patient_doc["_id"] = str(result.inserted_id)
@@ -51,10 +51,10 @@ async def list_patients(
     limit: int = 100
 ):
     db = get_database()
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
     
-    # Query patients for this owner, sorted by created_at descending
-    cursor = db.patients.find({"owner_id": owner_id}).sort("created_at", -1).skip(skip).limit(limit)
+    # Query patients for this owner, sorted by CreatedAt descending
+    cursor = db.patients.find({"OwnerId": OwnerId}).sort("CreatedAt", -1).skip(skip).limit(limit)
     
     results = []
     async for patient in cursor:
@@ -70,16 +70,16 @@ async def get_patient(
         current_user: dict = Depends(get_current_active_user)
     ):
     db = get_database()
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
     
-    # Find patient by patient_id
-    required_patient = await db.patients.find_one({"patient_id": patient_id})
+    # Find patient by PatientId
+    required_patient = await db.patients.find_one({"PatientId": patient_id})
     
     if not required_patient:
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # Authorization check: verify owner
-    if required_patient["owner_id"] != owner_id:
+    if required_patient["OwnerId"] != OwnerId:
         raise HTTPException(status_code=403, detail="Not authorized to view this patient")
     
     required_patient["_id"] = str(required_patient["_id"])
@@ -91,22 +91,22 @@ async def delete_patient(
     current_user: dict = Depends(get_current_active_user)
 ):
     db = get_database()
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
     
-    # Find patient by patient_id
-    patient_to_delete = await db.patients.find_one({"patient_id": patient_id})
+    # Find patient by PatientId
+    patient_to_delete = await db.patients.find_one({"PatientId": patient_id})
     
     if not patient_to_delete:
         raise HTTPException(status_code=404, detail="Patient not found")
     
     # Authorization check: verify owner
-    if patient_to_delete["owner_id"] != owner_id:
+    if patient_to_delete["OwnerId"] != OwnerId:
         raise HTTPException(status_code=403, detail="Not authorized to delete this patient")
     
     # Delete patient record
-    await db.patients.delete_one({"patient_id": patient_id})
+    await db.patients.delete_one({"PatientId": patient_id})
     
     # Optional: Delete related readings
-    await db.hemoglobin_readings.delete_many({"patient_id": patient_id})
+    await db.hemoglobin_readings.delete_many({"PatientId": patient_id})
     
     return {"message": "Patient deleted successfully"}

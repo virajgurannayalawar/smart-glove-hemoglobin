@@ -15,17 +15,15 @@ class UserCreate(BaseModel):
     contact_number: str = Field(..., min_length=10)
 
 class UserResponse(BaseModel):
-    id: str = Field(validation_alias="_id", default="")
-    patientId: str = Field(validation_alias="owner_id")
-    #However, my backend code sent the JSON keys back as _id and owner_id. The Flutter app strictly expects the keys to be exactly id and patientId so i renamed them in the above two lines.#
-    #validation_alias="_id" tells Pydantic: "Look for a key named _id in the source data, but save its value into my Python variable named id
-    name: str
-    email: str
-    age: int
-    gender: str
-    contact_number: str
-    is_active: bool = True
-    created_at: datetime = None
+    Id: str = Field(validation_alias="_id", default="")
+    OwnerId: str
+    Name: str
+    Email: str
+    Age: int
+    Gender: str  
+    ContactNumber: str
+    IsActive: bool = True
+    CreatedAt: datetime = None
     
     class Config:
         populate_by_name = True
@@ -35,4 +33,4 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    owner_id: Optional[str] = None
+    OwnerId: Optional[str] = None

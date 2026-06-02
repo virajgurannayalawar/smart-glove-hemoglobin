@@ -24,53 +24,53 @@ async def create_report(
     current_user: dict = Depends(get_current_active_user),
 ):
     db = get_database()
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
 
-    existing = await db.reports.find_one({"owner_id": owner_id, "reading_id": payload.reading_id})
+    existing = await db.reports.find_one({"OwnerId": OwnerId, "ReadingId": payload.ReadingId})
     if existing:
         existing["_id"] = str(existing["_id"])
         return HemoglobinReportResponse(**existing)
 
-    reading = await db.hemoglobin_readings.find_one({"reading_id": payload.reading_id, "owner_id": owner_id})
+    reading = await db.hemoglobin_readings.find_one({"ReadingId": payload.ReadingId, "OwnerId": OwnerId})
     if not reading:
         raise HTTPException(status_code=404, detail="Reading not found")
 
-    patient = await db.patients.find_one({"patient_id": reading["patient_id"], "owner_id": owner_id})
+    patient = await db.patients.find_one({"PatientId": reading["PatientId"], "OwnerId": OwnerId})
     if not patient:
         raise HTTPException(status_code=404, detail="Patient not found")
 
     report_id = str(uuid.uuid4())
-    scan_ts = reading.get("true_timestamp") or reading.get("created_at") or datetime.now(timezone.utc)
+    scan_ts = reading.get("TrueTimestamp") or reading.get("CreatedAt") or datetime.now(timezone.utc)
     generated_at = datetime.now(timezone.utc)
 
     report_model = HemoglobinReportResponse(
         _id="",
-        report_id=report_id,
-        reading_id=payload.reading_id,
-        patient_details=PatientDetails(
-            patient_id=patient["patient_id"],
-            name=patient["name"],
-            age=int(patient["age"]),
-            gender=patient["gender"],
-            contact_number=patient["contact_number"],
-            email=patient["email"],
-            is_pregnant=bool(reading.get("is_pregnant", payload.is_pregnant)),
+        ReportId=report_id,
+        ReadingId=payload.ReadingId,
+        PatientDetails=PatientDetails(
+            PatientId=patient["PatientId"],
+            Name=patient["Name"],
+            Age=int(patient["Age"]),
+            Gender=patient["Gender"],
+            ContactNumber=patient["ContactNumber"],
+            Email=patient["Email"],
+            IsPregnant=bool(reading.get("IsPregnant", payload.IsPregnant)),
         ),
-        scanner_details=ScannerDetails(
-            name=current_user.get("name", ""),
-            email=current_user.get("email", ""),
-            contact_number=current_user.get("contact_number", ""),
+        ScannerDetails=ScannerDetails(
+            Name=current_user.get("Name", ""),
+            Email=current_user.get("Email", ""),
+            ContactNumber=current_user.get("ContactNumber", ""),
         ),
-        hemoglobin_level=float(reading["hemoglobin_level"]),
-        is_anemic=bool(reading.get("is_anemic")),
-        status_text=reading.get("status_text") or ("Anemic" if reading.get("is_anemic") else "Normal"),
-        scan_timestamp=scan_ts,
-        report_generated_at=generated_at,
-        pdf_url=None,
+        HemoglobinLevel=float(reading["HemoglobinLevel"]),
+        IsAnemic=bool(reading.get("IsAnemic")),
+        StatusText=reading.get("StatusText") or ("Anemic" if reading.get("IsAnemic") else "Normal"),
+        ScanTimestamp=scan_ts,
+        ReportGeneratedAt=generated_at,
+        PdfUrl=None,
     )
 
     pdf_bytes = render_hemoglobin_report_pdf(report_model)
-    public_id = f"smart-glove/{owner_id}/reports/{report_id}"
+    public_id = f"smart-glove/{OwnerId}/reports/{report_id}"
     try:
         pdf_public_id = storage_service.upload_bytes(pdf_bytes, public_id, resource_type="raw")
         pdf_url = storage_service.generate_signed_url(pdf_public_id, resource_type="raw")
@@ -80,11 +80,11 @@ async def create_report(
     report_doc = report_model.model_dump(by_alias=True)
     report_doc.update(
         {
-            "owner_id": owner_id,
-            "patient_id": patient["patient_id"],
-            "pdf_public_id": pdf_public_id,
-            "pdf_url": pdf_url,
-            "report_generated_at": generated_at,
+            "OwnerId": OwnerId,
+            "PatientId": patient["PatientId"],
+            "PdfPublicId": pdf_public_id,
+            "PdfUrl": pdf_url,
+            "ReportGeneratedAt": generated_at,
         }
     )
 
@@ -96,9 +96,9 @@ async def create_report(
 @router.get("/{report_id}", response_model=HemoglobinReportResponse)
 async def get_report(report_id: str, current_user: dict = Depends(get_current_active_user)):
     db = get_database()
-    owner_id = current_user["owner_id"]
+    OwnerId = current_user["OwnerId"]
 
-    report = await db.reports.find_one({"owner_id": owner_id, "report_id": report_id})
+    report = await db.reports.find_one({"OwnerId": OwnerId, "ReportId": report_id})
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     report["_id"] = str(report["_id"])
@@ -108,8 +108,8 @@ async def get_report(report_id: str, current_user: dict = Depends(get_current_ac
 @router.get("", response_model=list[HemoglobinReportResponse])
 async def list_reports(current_user: dict = Depends(get_current_active_user), limit: int = 50):
     db = get_database()
-    owner_id = current_user["owner_id"]
-    cursor = db.reports.find({"owner_id": owner_id}).sort("report_generated_at", -1).limit(limit)
+    OwnerId = current_user["OwnerId"]
+    cursor = db.reports.find({"OwnerId": OwnerId}).sort("ReportGeneratedAt", -1).limit(limit)
     results: list[dict] = []
     async for doc in cursor:
         doc["_id"] = str(doc["_id"])

@@ -2,8 +2,8 @@ from pydantic import BaseModel
 
 
 class GloveKeyResponse(BaseModel):
-    glove_api_key: str
+    GloveApiKey: str
 
 
 class GloveKeyRotateResponse(BaseModel):
-    glove_api_key: str
+    GloveApiKey: str

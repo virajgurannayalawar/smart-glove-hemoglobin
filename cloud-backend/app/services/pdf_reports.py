@@ -23,40 +23,40 @@ def render_hemoglobin_report_pdf(report: HemoglobinReportResponse) -> bytes:
 
     y -= 12 * mm
     c.setFont("Helvetica", 10)
-    c.drawString(20 * mm, y, f"Report ID: {report.report_id}")
+    c.drawString(20 * mm, y, f"Report ID: {report.ReportId}")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Generated: {report.report_generated_at.isoformat()}")
+    c.drawString(20 * mm, y, f"Generated: {report.ReportGeneratedAt.isoformat()}")
 
     y -= 10 * mm
     c.setFont("Helvetica-Bold", 12)
     c.drawString(20 * mm, y, "Patient")
     y -= 7 * mm
     c.setFont("Helvetica", 10)
-    p = report.patient_details
-    c.drawString(20 * mm, y, f"{p.name} | Age: {p.age} | Gender: {p.gender} | Pregnant: {p.is_pregnant}")
+    p = report.PatientDetails
+    c.drawString(20 * mm, y, f"{p.Name} | Age: {p.Age} | Gender: {p.Gender} | Pregnant: {p.IsPregnant}")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Contact: {p.contact_number} | Email: {p.email}")
+    c.drawString(20 * mm, y, f"Contact: {p.ContactNumber} | Email: {p.Email}")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Patient ID: {p.patient_id}")
+    c.drawString(20 * mm, y, f"Patient ID: {p.PatientId}")
 
     y -= 10 * mm
     c.setFont("Helvetica-Bold", 12)
     c.drawString(20 * mm, y, "Scanner (Owner)")
     y -= 7 * mm
     c.setFont("Helvetica", 10)
-    s = report.scanner_details
-    c.drawString(20 * mm, y, f"{s.name} | {s.email} | {s.contact_number}")
+    s = report.ScannerDetails
+    c.drawString(20 * mm, y, f"{s.Name} | {s.Email} | {s.ContactNumber}")
 
     y -= 10 * mm
     c.setFont("Helvetica-Bold", 12)
     c.drawString(20 * mm, y, "Result")
     y -= 7 * mm
     c.setFont("Helvetica", 10)
-    c.drawString(20 * mm, y, f"Hemoglobin: {report.hemoglobin_level:.2f} g/dL")
+    c.drawString(20 * mm, y, f"Hemoglobin: {report.HemoglobinLevel:.2f} g/dL")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Status: {report.status_text} (is_anemic={report.is_anemic})")
+    c.drawString(20 * mm, y, f"Status: {report.StatusText} (is_anemic={report.IsAnemic})")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Scan time: {report.scan_timestamp.isoformat()}")
+    c.drawString(20 * mm, y, f"Scan time: {report.ScanTimestamp.isoformat()}")
 
     y -= 12 * mm
     c.setFont("Helvetica-Oblique", 9)

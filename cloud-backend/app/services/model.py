@@ -10,9 +10,9 @@ class ModelPredictionError(RuntimeError):
 
 @dataclass(frozen=True)
 class HemoglobinPrediction:
-    hemoglobin_level: float
-    provider: str
-    notes: Optional[str] = None
+    HemoglobinLevel: float
+    Provider: str
+    Notes: Optional[str] = None
 
 
 async def predict_hemoglobin_from_image(image_bytes: bytes) -> HemoglobinPrediction:
@@ -27,9 +27,9 @@ async def predict_hemoglobin_from_image(image_bytes: bytes) -> HemoglobinPredict
 
     if settings.MODEL_PROVIDER == "mock":
         return HemoglobinPrediction(
-            hemoglobin_level=float(settings.MOCK_HEMOGLOBIN_VALUE),
-            provider="mock",
-            notes="Mock predictor (replace with real model provider)",
+            HemoglobinLevel=float(settings.MOCK_HEMOGLOBIN_VALUE),
+            Provider="mock",
+            Notes="Mock predictor (replace with real model provider)",
         )
 
     raise ModelPredictionError(f"Unsupported MODEL_PROVIDER: {settings.MODEL_PROVIDER}")
