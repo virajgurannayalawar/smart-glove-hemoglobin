@@ -5,6 +5,8 @@ ai-model/weights/*.pth
 __pycache__/
 
 # Role 2: Cloud Backend
+cloud-backend/my_reference/
+
 cloud-backend/node_modules/
 cloud-backend/.env
 
@@ -14,5 +16,7 @@ mobile-app/build/
 mobile-app/.packages
 
 # General
+.windsurfrules
+.cursorrules
 .DS_Store
 *.log
