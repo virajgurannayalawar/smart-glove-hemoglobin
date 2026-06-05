@@ -1,0 +1,33 @@
+services:
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: "mongodb://mongo:27017"
+      DATABASE_NAME: "smart_glove"
+      API_V1_STR: "/api/v1"
+      LOG_LEVEL: "INFO"
+      # Provide these via env/secret manager in production
+      SECRET_KEY: "change-me"
+      AES_SECRET_KEY: "32byte-long-secret-key-for-aes-!"
+      MODEL_PROVIDER: "mock"
+      MOCK_HEMOGLOBIN_VALUE: "13.2"
+      IMAGE_PROCESSING_ENABLED: "true"
+      MODEL_IMAGE_SIZE: "224"
+      CORS_ALLOW_ORIGINS: '["*"]'
+      CORS_ALLOW_METHODS: '["*"]'
+      CORS_ALLOW_HEADERS: '["*"]'
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:
+
