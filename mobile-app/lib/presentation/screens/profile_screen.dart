@@ -194,6 +194,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     : const Text('Save Changes', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
               const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/patients'),
+                icon: const Icon(Icons.people),
+                label: const Text('Manage Patients', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue.shade600,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+              const SizedBox(height: 16),
               OutlinedButton.icon(
                 onPressed: _logout,
                 icon: const Icon(Icons.logout, color: Colors.red),

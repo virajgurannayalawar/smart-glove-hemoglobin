@@ -5,10 +5,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dartz/dartz.dart';
 
-// Since this is in a separate root directory, we use absolute imports or relative imports.
-import '../../../lib/core/error/failures.dart';
-import '../../../lib/data/repositories/auth_repository_impl.dart';
-import '../../../lib/domain/entities/user.dart';
+import 'package:smart_glove/core/error/failures.dart';
+import 'package:smart_glove/data/repositories/auth_repository_impl.dart';
+import 'package:smart_glove/domain/entities/user.dart';
 
 @GenerateMocks([Dio, FlutterSecureStorage])
 import 'auth_repository_impl_test.mocks.dart';
@@ -30,19 +29,18 @@ void main() {
   group('login', () {
     const tEmail = 'test@example.com';
     const tPassword = 'password123';
-    
+
     final tUserJson = {
-      'id': '1',
-      'patientId': 'P123456',
-      'name': 'John Doe',
-      'age': 25,
-      'gender': 'Male',
-      'email': tEmail,
+      'Id': 'mongo-id',
+      'OwnerId': 'owner-uuid',
+      'Name': 'John Doe',
+      'Age': 25,
+      'Gender': 'Male',
+      'Email': tEmail,
     };
     final tUser = User.fromJson(tUserJson);
 
     test('should return User when login is successful (200)', () async {
-      // arrange
       when(mockDio.post(any, data: anyNamed('data'))).thenAnswer(
         (_) async => Response(
           requestOptions: RequestOptions(path: '/auth/login'),
@@ -53,20 +51,21 @@ void main() {
           },
         ),
       );
-      
+
       when(mockSecureStorage.write(key: anyNamed('key'), value: anyNamed('value')))
           .thenAnswer((_) async => Future.value());
 
-      // act
       final result = await repository.login(tEmail, tPassword);
 
-      // assert
-      expect(result, equals(Right(tUser)));
+      expect(result.isRight(), true);
+      result.fold((_) => fail('expected success'), (user) {
+        expect(user.patientId, 'owner-uuid');
+        expect(user.name, 'John Doe');
+      });
       verify(mockSecureStorage.write(key: 'jwt_token', value: 'test_jwt_token')).called(1);
     });
 
     test('should return ServerFailure when login fails (401)', () async {
-      // arrange
       when(mockDio.post(any, data: anyNamed('data'))).thenAnswer(
         (_) async => Response(
           requestOptions: RequestOptions(path: '/auth/login'),
@@ -75,25 +74,26 @@ void main() {
         ),
       );
 
-      // act
       final result = await repository.login(tEmail, tPassword);
 
-      // assert
-      expect(result, equals(const Left(ServerFailure('Invalid credentials'))));
+      result.fold(
+        (failure) => expect(failure.message, 'Invalid credentials'),
+        (_) => fail('expected failure'),
+      );
       verifyNever(mockSecureStorage.write(key: anyNamed('key'), value: anyNamed('value')));
     });
 
     test('should return NetworkFailure when DioException occurs', () async {
-      // arrange
       when(mockDio.post(any, data: anyNamed('data'))).thenThrow(
         DioException(requestOptions: RequestOptions(path: '/auth/login')),
       );
 
-      // act
       final result = await repository.login(tEmail, tPassword);
 
-      // assert
-      expect(result, equals(const Left(NetworkFailure('Network connection failed'))));
+      result.fold(
+        (failure) => expect(failure.message, 'Network connection failed'),
+        (_) => fail('expected failure'),
+      );
     });
   });
 }

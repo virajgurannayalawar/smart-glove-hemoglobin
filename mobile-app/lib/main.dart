@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import 'core/routing/app_router.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Load environment variables for base URLs
-  await dotenv.load(fileName: ".env");
+
+  await dotenv.load(fileName: '.env');
+  await Hive.initFlutter();
+  await Hive.openBox('historyBox');
+  await Hive.openBox('scanBox');
+  await Hive.openBox('patientsBox');
+  await Hive.openBox('glovebox');
 
   runApp(
     const ProviderScope(
@@ -18,19 +23,21 @@ void main() async {
   );
 }
 
-class SmartGloveApp extends StatelessWidget {
+class SmartGloveApp extends ConsumerWidget {
   const SmartGloveApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final router = ref.watch(appRouterProvider);
+
     return MaterialApp.router(
       title: 'Smart Glove',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D47A1)), // Deep navy primary
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D47A1)),
         useMaterial3: true,
         textTheme: GoogleFonts.interTextTheme(),
       ),
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }
