@@ -1,0 +1,33 @@
+# Smart Glove Edge Firmware Dependencies
+# Python 3.10+ required
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-dotenv==1.0.0
+
+# HTTP Client
+requests==2.31.0
+
+# Encryption
+cryptography==41.0.7
+
+# Camera (Picamera2 for modern Pi OS, fallback to raspistill)
+picamera2==0.3.17
+opencv-python==4.8.0.76
+
+# GPIO (for power control)
+gpiozero==1.6.2
+
+# mDNS/Network (optional, for hostname advertising)
+dbus-next==0.2.3  # For Avahi/mDNS on Linux
+
+# BLE Provisioning (optional)
+bleak==0.21.0
+
+# Logging
+structlog==23.2.0
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
