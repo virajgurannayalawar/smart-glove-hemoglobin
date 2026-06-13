@@ -2,52 +2,52 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from torchvision import datasets, transforms, models
+from torchvision import models
 from torch.utils.data import DataLoader
 
-# Image Transform
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor()
-])
+from hb_dataset import HemoglobinDataset
 
-# Load Dataset
-dataset = datasets.ImageFolder(
-    root="../data",
-    transform=transform
+# Dataset
+dataset = HemoglobinDataset(
+    csv_file="../data/metadata.csv",
+    image_dir="../data/images"
 )
 
 dataloader = DataLoader(
     dataset,
-    batch_size=2,
+    batch_size=8,
     shuffle=True
 )
 
-# Load Pretrained Model
-model = models.resnet18(pretrained=True)
+# Model
+model = models.resnet18(weights="DEFAULT")
 
-# Change final layer
 num_features = model.fc.in_features
-model.fc = nn.Linear(num_features, 2)
+model.fc = nn.Linear(num_features, 1)
 
-# Loss and Optimizer
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+# Loss + Optimizer
+criterion = nn.MSELoss()
+optimizer = optim.Adam(
+    model.parameters(),
+    lr=0.001
+)
 
 # Training
-epochs = 3
+epochs = 20
 
 for epoch in range(epochs):
 
     running_loss = 0.0
 
-    for images, labels in dataloader:
+    for images, hb_values in dataloader:
+
+        hb_values = hb_values.float().view(-1, 1)
 
         optimizer.zero_grad()
 
         outputs = model(images)
 
-        loss = criterion(outputs, labels)
+        loss = criterion(outputs, hb_values)
 
         loss.backward()
 
@@ -55,9 +55,15 @@ for epoch in range(epochs):
 
         running_loss += loss.item()
 
-    print(f"Epoch {epoch+1}/{epochs}, Loss: {running_loss}")
+    print(
+        f"Epoch {epoch+1}/{epochs}, "
+        f"Loss: {running_loss:.4f}"
+    )
 
-# Save model
-torch.save(model.state_dict(), "../models/anemia_detector.pth")
+# Save Model
+torch.save(
+    model.state_dict(),
+    "../models/hb_predictor.pth"
+)
 
-print("Model Saved Successfully!")
+print("Hemoglobin Model Saved!")

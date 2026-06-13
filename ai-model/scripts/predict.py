@@ -2,21 +2,19 @@ import torch
 import torch.nn as nn
 from torchvision import transforms, models
 from PIL import Image
+import sys
 
 # Load model
-model = models.resnet18(pretrained=False)
+model = models.resnet18(weights=None)
 
 num_features = model.fc.in_features
-model.fc = nn.Linear(num_features, 2)
+model.fc = nn.Linear(num_features, 1)
 
 model.load_state_dict(
-    torch.load("../models/anemia_detector.pth")
+    torch.load("../models/hb_predictor.pth")
 )
 
 model.eval()
-
-# Classes
-classes = ['anemia', 'normal']
 
 # Image transform
 transform = transforms.Compose([
@@ -25,7 +23,8 @@ transform = transforms.Compose([
 ])
 
 # Load image
-image = Image.open("../data/test/test1.jpg")
+image_path = sys.argv[1]
+image = Image.open(image_path)
 
 # Transform image
 image = transform(image).unsqueeze(0)
@@ -33,10 +32,10 @@ image = transform(image).unsqueeze(0)
 # Prediction
 with torch.no_grad():
 
-    outputs = model(image)
-
-    _, predicted = torch.max(outputs, 1)
-
-    prediction = classes[predicted.item()]
-
-print("Prediction:", prediction)
+    hb_level = model(image)
+predicted_hb=hb_level.item()/10
+print(
+    "Predicted Hemoglobin:",
+    round(predicted_hb, 2),
+    "g/dL"
+)
