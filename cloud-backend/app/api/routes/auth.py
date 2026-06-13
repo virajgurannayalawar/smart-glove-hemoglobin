@@ -5,28 +5,32 @@ from app.services.db import get_database
 from datetime import timedelta, datetime, timezone
 from app.core.config import settings
 import uuid
+import secrets
 
 router = APIRouter()
 
 @router.post("/register", response_model=UserResponse)
 async def register(user_in: UserCreate):
     db = get_database()
-    existing_user = await db.users.find_one({"email": user_in.email})
+    existing_user = await db.users.find_one({"Email": user_in.email})
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
         
-    patient_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
     hashed_password = get_password_hash(user_in.password)
+    glove_api_key = secrets.token_urlsafe(32)
     
     user_doc = {
-        "patient_id": patient_id,
-        "email": user_in.email,
-        "name": user_in.name,
-        "age": user_in.age,
-        "gender": user_in.gender,
-        "hashed_password": hashed_password,
-        "is_active": True,
-        "created_at": datetime.now(timezone.utc)
+        "OwnerId": user_id,
+        "Email": user_in.email,
+        "Name": user_in.name,
+        "Age": user_in.age,
+        "Gender": user_in.gender, 
+        "ContactNumber": user_in.contact_number,
+        "HashedPassword": hashed_password,
+        "GloveApiKey": glove_api_key,
+        "IsActive": True,
+        "CreatedAt": datetime.now(timezone.utc)
     }
     
     result = await db.users.insert_one(user_doc)
@@ -36,8 +40,8 @@ async def register(user_in: UserCreate):
 @router.post("/login")
 async def login(login_req: LoginRequest):
     db = get_database()
-    user = await db.users.find_one({"email": login_req.email})
-    if not user or not verify_password(login_req.password, user["hashed_password"]):
+    user = await db.users.find_one({"Email": login_req.email})
+    if not user or not verify_password(login_req.password, user["HashedPassword"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
@@ -45,12 +49,11 @@ async def login(login_req: LoginRequest):
         
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user["patient_id"]}, expires_delta=access_token_expires 
-        #However, my backend code sent the JSON keys back as _id and patient_id. The Flutter app strictly expects the keys to be exactly id and patientId so i renamed them
+        data={"sub": user["OwnerId"]}, expires_delta=access_token_expires
     )
     
     user["_id"] = str(user["_id"])
     return {
         "token": access_token,
-        "user": UserResponse(**user).model_dump()
+        "user": UserResponse(**user).model_dump(by_alias=True)
     }

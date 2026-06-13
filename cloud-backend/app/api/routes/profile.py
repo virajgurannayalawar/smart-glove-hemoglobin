@@ -7,13 +7,13 @@ from pydantic import BaseModel
 router = APIRouter()
 
 class ProfileUpdate(BaseModel):
-    name: str
-    age: int
-    gender: str
+    Name: str
+    Age: int
+    Gender: str
 
 @router.get("", response_model=UserResponse)
 async def get_profile(current_user: dict = Depends(get_current_active_user)):
-    current_user["_id"] = str(current_user["_id"])
+    current_user["_id"] = str(current_user["_id"])  
     return UserResponse(**current_user)
 
 @router.put("", response_model=UserResponse)
@@ -24,9 +24,9 @@ async def update_profile(
     db = get_database()
     
     update_data = {
-        "name": profile_data.name,
-        "age": profile_data.age,
-        "gender": profile_data.gender
+        "Name": profile_data.Name,
+        "Age": profile_data.Age,
+        "Gender": profile_data.Gender
     }
     
     result = await db.users.update_one(

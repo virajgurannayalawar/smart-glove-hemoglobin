@@ -1,0 +1,8 @@
+{
+    "patient_id": "PATIENT001",
+    "owner_id": "OWNER001",
+    "capture_timestamp": 1779993129,
+    "sync_timestamp": 1779993129,
+    "is_pregnant": false,
+    "device_name": "SMART_GLOVE_PI"
+}

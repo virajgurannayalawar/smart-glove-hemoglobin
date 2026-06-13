@@ -25,6 +25,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
+#AES-256 Payload Encryption ✅
+
 def decrypt_image_payload(encrypted_data: bytes) -> bytes:
     """
     Decrypts the AES-256 encrypted image payload.
@@ -35,17 +37,27 @@ def decrypt_image_payload(encrypted_data: bytes) -> bytes:
         
     iv = encrypted_data[:16]
     ciphertext = encrypted_data[16:]
+
+    if len(ciphertext) == 0 or (len(ciphertext) % 16) != 0:
+        raise ValueError("Invalid ciphertext length")
     
     # Ensure key is 32 bytes for AES-256
-    key = settings.AES_SECRET_KEY.encode('utf-8')[:32].ljust(32, b'\0')
+    AES_SECRET_KEY=settings.AES_SECRET_KEY
+    key = bytes.fromhex(AES_SECRET_KEY)
     
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
     decryptor = cipher.decryptor()
     
     padded_data = decryptor.update(ciphertext) + decryptor.finalize()
     
-    # PKCS7 Unpadding
+    # PKCS7 Unpadding (validated)
+    if not padded_data:
+        raise ValueError("Invalid decrypted payload")
     padding_length = padded_data[-1]
+    if padding_length < 1 or padding_length > 16:
+        raise ValueError("Invalid PKCS7 padding")
+    if padded_data[-padding_length:] != bytes([padding_length]) * padding_length:
+        raise ValueError("Invalid PKCS7 padding")
     unpadded_data = padded_data[:-padding_length]
     
     return unpadded_data

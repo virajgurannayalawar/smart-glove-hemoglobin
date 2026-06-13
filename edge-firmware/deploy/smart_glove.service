@@ -1,0 +1,30 @@
+[Unit]
+Description=Smart Glove Edge Firmware
+Documentation=https://github.com/smart-glove-hemoglobin
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=smartglove
+Group=smartglove
+WorkingDirectory=/opt/smart_glove
+Environment="PATH=/opt/smart_glove/venv/bin"
+EnvironmentFile=/etc/smart_glove/.env
+ExecStart=/opt/smart_glove/venv/bin/python -m edge_firmware.main
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=smart_glove
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/smart_glove
+ReadWritePaths=/var/log
+
+[Install]
+WantedBy=multi-user.target

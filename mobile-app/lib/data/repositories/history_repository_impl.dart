@@ -15,8 +15,8 @@ final historyRepositoryProvider = Provider<HistoryRepository>((ref) {
 
 class HistoryRepositoryImpl implements HistoryRepository {
   final Dio dio;
-  static const String _boxName = 'historyBox';
-  static const String _cacheKey = 'cached_history';
+  static const String boxName = 'historyBox';
+  static const String cacheKey = 'cached_history';
 
   HistoryRepositoryImpl({required this.dio});
 
@@ -27,12 +27,14 @@ class HistoryRepositoryImpl implements HistoryRepository {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = response.data;
-        final results = data.map((json) => ScanResult.fromJson(json)).toList();
+        final results = data
+            .map((json) => ScanResult.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
 
         // Cache the results for offline use
         try {
-          final box = await Hive.openBox(_boxName);
-          await box.put(_cacheKey, jsonEncode(data));
+          final box = await Hive.openBox(boxName);
+          await box.put(cacheKey, jsonEncode(data));
         } catch (e) {
           // Ignore Hive errors to not break the successful remote fetch
         }
@@ -51,12 +53,14 @@ class HistoryRepositoryImpl implements HistoryRepository {
 
   Future<Either<Failure, List<ScanResult>>> _getCachedHistory() async {
     try {
-      final box = await Hive.openBox(_boxName);
-      final String? cachedData = box.get(_cacheKey);
+      final box = await Hive.openBox(boxName);
+      final String? cachedData = box.get(cacheKey);
       
       if (cachedData != null) {
         final List<dynamic> data = jsonDecode(cachedData);
-        final results = data.map((json) => ScanResult.fromJson(json)).toList();
+        final results = data
+            .map((json) => ScanResult.fromJson(Map<String, dynamic>.from(json)))
+            .toList();
         return Right(results);
       }
       return const Left(CacheFailure('No cached history available'));

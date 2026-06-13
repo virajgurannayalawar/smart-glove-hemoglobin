@@ -39,6 +39,8 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
     fetchHistory();
   }
 
+  Future<void> refresh() => fetchHistory();
+
   Future<void> fetchHistory() async {
     state = state.copyWith(isLoading: true, clearError: true);
     
@@ -49,9 +51,8 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
         state = state.copyWith(isLoading: false, errorMessage: failure.message);
       },
       (scans) {
-        // Sort newest first
-        scans.sort((a, b) => b.date.compareTo(a.date));
-        state = state.copyWith(isLoading: false, scans: scans);
+        final sorted = [...scans]..sort((a, b) => b.date.compareTo(a.date));
+        state = state.copyWith(isLoading: false, scans: sorted);
       },
     );
   }

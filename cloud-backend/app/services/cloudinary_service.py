@@ -25,6 +25,16 @@ class CloudinaryService:
         Uploads a file to Cloudinary as an authenticated asset (private).
         Returns the public_id.
         """
+        return self.upload_bytes(file_bytes, public_id, resource_type="image")
+
+    def upload_bytes(self, file_bytes: bytes, public_id: str, resource_type: str) -> str:
+        """
+        Uploads raw bytes to Cloudinary.
+
+        resource_type:
+        - "image" for images
+        - "raw" for PDFs and other files
+        """
         if not self.configured:
             raise Exception("Cloudinary is not configured.")
             
@@ -34,7 +44,7 @@ class CloudinaryService:
                 file_bytes,
                 public_id=public_id,
                 type="authenticated",
-                resource_type="image",
+                resource_type=resource_type,
                 overwrite=True
             )
             return response.get("public_id")
@@ -42,7 +52,7 @@ class CloudinaryService:
             logger.error(f"Error uploading to Cloudinary: {e}")
             raise e
 
-    def generate_signed_url(self, public_id: str) -> str:
+    def generate_signed_url(self, public_id: str, resource_type: str = "image") -> str:
         """
         Generates a signed URL for secure mobile app viewing.
         Only valid with the correct signature.
@@ -54,6 +64,7 @@ class CloudinaryService:
             url, options = cloudinary.utils.cloudinary_url(
                 public_id,
                 type="authenticated",
+                resource_type=resource_type,
                 sign_url=True
             )
             return url
