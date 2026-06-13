@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+import '../providers/patient_provider.dart';
+import '../providers/scan_session_provider.dart';
+import '../providers/history_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -66,6 +69,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   void _logout() async {
     await ref.read(authNotifierProvider.notifier).logout();
+    
+    // Clear all related state to prevent patient/data switching
+    ref.read(patientNotifierProvider.notifier).reset();
+    ref.read(scanSessionNotifierProvider.notifier).resetSession();
+    ref.read(historyNotifierProvider.notifier).reset();
+    
     if (mounted) {
       context.go('/login');
     }

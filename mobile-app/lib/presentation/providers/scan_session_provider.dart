@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:encrypt/encrypt.dart' as enc;
 
 import '../../core/services/bluetooth_service.dart';
 import '../../data/repositories/glove_repository_impl.dart';
@@ -68,6 +72,150 @@ class ScanSessionNotifier extends StateNotifier<ScanSessionNotifierState> {
   final GloveRepository _gloveRepository;
   final BluetoothService _bleService;
   final Ref _ref;
+
+  Future<void> startScanWithImage({
+    required String patientId,
+    required bool isPregnant,
+    required List<int> imageBytes,
+    int timeoutSeconds = 60,
+  }) async {
+    final cancelToken = CancelToken();
+    state = ScanSessionNotifierState(
+      state: ScanSessionState.creating,
+      cancelToken: cancelToken,
+    );
+
+    // 1. Create Scan Session on backend
+    final createResult = await _repository.createSession(
+      patientId: patientId,
+      isPregnant: isPregnant,
+    );
+
+    final scanId = createResult.fold(
+      (failure) {
+        state = state.copyWith(
+          state: ScanSessionState.error,
+          errorMessage: failure.message,
+        );
+        return null;
+      },
+      (id) => id,
+    );
+
+    if (scanId == null || cancelToken.isCancelled) return;
+
+    state = state.copyWith(scanId: scanId);
+
+    // 2. Fetch OwnerId & GloveApiKey from gloveRepository
+    final ownerResult = await _gloveRepository.fetchOwnerId();
+    final keyResult = await _gloveRepository.fetchGloveKey();
+
+    String? ownerId;
+    String? gloveKey;
+
+    ownerResult.fold(
+      (failure) {
+        state = state.copyWith(
+          state: ScanSessionState.error,
+          errorMessage: 'Failed to fetch owner ID: ${failure.message}',
+        );
+      },
+      (id) => ownerId = id,
+    );
+
+    if (ownerId == null || cancelToken.isCancelled) return;
+
+    keyResult.fold(
+      (failure) {
+        state = state.copyWith(
+          state: ScanSessionState.error,
+          errorMessage: 'Failed to fetch glove key: ${failure.message}',
+        );
+      },
+      (key) => gloveKey = key,
+    );
+
+    if (gloveKey == null || cancelToken.isCancelled) return;
+
+    // 3. Retrieve AES secret key from .env and hex-decode it
+    final aesSecretKeyHex = dotenv.env['AES_SECRET_KEY'] ?? '';
+    if (aesSecretKeyHex.length != 64) {
+      state = state.copyWith(
+        state: ScanSessionState.error,
+        errorMessage: 'AES_SECRET_KEY is not configured or invalid in .env (must be 64 characters/32 bytes)',
+      );
+      return;
+    }
+
+    List<int> encryptedBytes;
+    try {
+      encryptedBytes = _encryptImageAES256(imageBytes, aesSecretKeyHex);
+    } catch (e) {
+      state = state.copyWith(
+        state: ScanSessionState.error,
+        errorMessage: 'Failed to encrypt image payload: $e',
+      );
+      return;
+    }
+
+    if (cancelToken.isCancelled) return;
+
+    // 4. Upload encrypted image
+    final uploadResult = await _repository.uploadScanImage(
+      scanId: scanId,
+      encryptedImageBytes: encryptedBytes,
+      ownerId: ownerId!,
+      patientId: patientId,
+      isPregnant: isPregnant,
+      gloveKey: gloveKey!,
+    );
+
+    final uploadSuccess = uploadResult.fold(
+      (failure) {
+        state = state.copyWith(
+          state: ScanSessionState.error,
+          errorMessage: 'Failed to upload image: ${failure.message}',
+        );
+        return false;
+      },
+      (_) => true,
+    );
+
+    if (!uploadSuccess || cancelToken.isCancelled) return;
+
+    // 5. Start long-polling for analysis result
+    await _pollWithRetry(
+      scanId: scanId,
+      timeoutSeconds: timeoutSeconds,
+      cancelToken: cancelToken,
+    );
+  }
+
+  List<int> _encryptImageAES256(List<int> plainBytes, String keyHex) {
+    // Hex decode key
+    final cleanHex = keyHex.trim().replaceAll('"', '').replaceAll("'", "");
+    final keyBytes = <int>[];
+    for (int i = 0; i < cleanHex.length; i += 2) {
+      keyBytes.add(int.parse(cleanHex.substring(i, i + 2), radix: 16));
+    }
+    final key = enc.Key(Uint8List.fromList(keyBytes));
+
+    // Generate random 16-byte IV
+    final rand = Random.secure();
+    final ivBytes = Uint8List.fromList(List<int>.generate(16, (_) => rand.nextInt(256)));
+    final iv = enc.IV(ivBytes);
+
+    // Encrypt
+    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.cbc));
+    final encrypted = encrypter.encryptBytes(plainBytes, iv: iv);
+
+    // Format expected by server: IV + Ciphertext
+    final payload = Uint8List(16 + encrypted.bytes.length);
+    payload.setRange(0, 16, ivBytes);
+    payload.setRange(16, payload.length, encrypted.bytes);
+
+    return payload;
+  }
 
   Future<void> startScan({
     required String patientId,

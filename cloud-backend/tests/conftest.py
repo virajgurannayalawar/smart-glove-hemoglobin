@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 # Mock current user dependency
 def override_get_current_active_user():
     return {
-        "patient_id": "test-patient-123",
+        "OwnerId": "test-owner-123",
         "email": "test@example.com",
         "name": "Test User",
-        "is_active": True
+        "IsActive": True
     }
 
 app.dependency_overrides[get_current_active_user] = override_get_current_active_user

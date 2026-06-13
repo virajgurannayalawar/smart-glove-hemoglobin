@@ -27,36 +27,51 @@ def render_hemoglobin_report_pdf(report: HemoglobinReportResponse) -> bytes:
     y -= 6 * mm
     c.drawString(20 * mm, y, f"Generated: {report.ReportGeneratedAt.isoformat()}")
 
+    # 1. Scanner Details (moved to top of patient details, name and contact only)
     y -= 10 * mm
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(20 * mm, y, "Patient")
+    c.drawString(20 * mm, y, "Scanner Details")
+    y -= 7 * mm
+    c.setFont("Helvetica", 10)
+    s = report.ScannerDetails
+    c.drawString(20 * mm, y, f"Name: {s.Name} | Email: {s.Email} | Contact: {s.ContactNumber}")
+
+    # 2. Patient Details
+    y -= 10 * mm
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(20 * mm, y, "Patient Details")
     y -= 7 * mm
     c.setFont("Helvetica", 10)
     p = report.PatientDetails
-    c.drawString(20 * mm, y, f"{p.Name} | Age: {p.Age} | Gender: {p.Gender} | Pregnant: {p.IsPregnant}")
+    c.drawString(20 * mm, y, f"Name: {p.Name} | Age: {p.Age} | Gender: {p.Gender} | Pregnant: {p.IsPregnant}")
     y -= 6 * mm
     c.drawString(20 * mm, y, f"Contact: {p.ContactNumber} | Email: {p.Email}")
     y -= 6 * mm
     c.drawString(20 * mm, y, f"Patient ID: {p.PatientId}")
 
-    y -= 10 * mm
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(20 * mm, y, "Scanner (Owner)")
-    y -= 7 * mm
-    c.setFont("Helvetica", 10)
-    s = report.ScannerDetails
-    c.drawString(20 * mm, y, f"{s.Name} | {s.Email} | {s.ContactNumber}")
-
+    # 3. Result Details
     y -= 10 * mm
     c.setFont("Helvetica-Bold", 12)
     c.drawString(20 * mm, y, "Result")
     y -= 7 * mm
     c.setFont("Helvetica", 10)
-    c.drawString(20 * mm, y, f"Hemoglobin: {report.HemoglobinLevel:.2f} g/dL")
+    c.drawString(20 * mm, y, f"Hemoglobin Level: {report.HemoglobinLevel:.2f} g/dL")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Status: {report.StatusText} (is_anemic={report.IsAnemic})")
+    c.drawString(20 * mm, y, f"Classification: {report.StatusText}")
     y -= 6 * mm
-    c.drawString(20 * mm, y, f"Scan time: {report.ScanTimestamp.isoformat()}")
+    
+    # Calculate Severity matching mobile app
+    severity = "Normal"
+    if report.HemoglobinLevel < 7:
+        severity = "Severe Anemia"
+    elif report.HemoglobinLevel < 11:
+        severity = "Mid Anemia"
+    elif report.HemoglobinLevel < 13:
+        severity = "Borderline Anemia"
+        
+    c.drawString(20 * mm, y, f"Severity: {severity}")
+    y -= 6 * mm
+    c.drawString(20 * mm, y, f"Scan date: {report.ScanTimestamp.isoformat()}")
 
     y -= 12 * mm
     c.setFont("Helvetica-Oblique", 9)

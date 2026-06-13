@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../providers/scan_session_provider.dart';
 import '../providers/patient_provider.dart';
 import '../widgets/result_card.dart';
@@ -21,6 +22,16 @@ class _CheckScanScreenState extends ConsumerState<CheckScanScreen> {
     final patientState = ref.watch(patientNotifierProvider);
     final selectedPatient = patientState.selectedPatient;
 
+    // Validate selected patient exists in current list
+    if (selectedPatient != null && 
+        !patientState.patients.any((p) => p.id == selectedPatient.id)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ref.read(patientNotifierProvider.notifier).clearSelection();
+        }
+      });
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hemoglobin Check'),
@@ -32,7 +43,7 @@ class _CheckScanScreenState extends ConsumerState<CheckScanScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Patient Selection Card
+              // Patient Details Card (Read-only)
               Card(
                 elevation: 2,
                 child: Padding(
@@ -41,64 +52,55 @@ class _CheckScanScreenState extends ConsumerState<CheckScanScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Select Patient',
+                        'Patient Details',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
                         ),
                       ),
                       const SizedBox(height: 12),
-                      if (patientState.isLoading)
-                        const Center(
-                          child: CircularProgressIndicator(),
-                        )
-                      else if (patientState.patients.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            children: [
-                              Icon(Icons.person_add, color: Colors.grey[400]),
-                              const SizedBox(height: 8),
-                              Text(
-                                'No patients found',
-                                style: TextStyle(color: Colors.grey[600]),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 24,
+                            backgroundColor: const Color(0xFF0D47A1).withOpacity(0.1),
+                            child: Text(
+                              selectedPatient?.name.substring(0, 1).toUpperCase() ?? 'P',
+                              style: const TextStyle(
+                                color: Color(0xFF0D47A1),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 20,
                               ),
-                              const SizedBox(height: 12),
-                              ElevatedButton.icon(
-                                onPressed: () {
-                                  context.go('/patients');
-                                },
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add Patient'),
-                              ),
-                            ],
+                            ),
                           ),
-                        )
-                      else
-                        DropdownButton<String>(
-                          value: selectedPatient?.id,
-                          isExpanded: true,
-                          hint: const Text('Choose a patient'),
-                          items: patientState.patients.map((patient) {
-                            return DropdownMenuItem(
-                              value: patient.id,
-                              child: Text('${patient.name} (${patient.age}y)'),
-                            );
-                          }).toList(),
-                          onChanged: (patientId) {
-                            if (patientId != null) {
-                              final patient = patientState.patients
-                                  .firstWhere((p) => p.id == patientId);
-                              ref
-                                  .read(patientNotifierProvider.notifier)
-                                  .selectPatient(patient);
-                            }
-                          },
-                        ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  selectedPatient?.name ?? 'Unknown Patient',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF212121),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Age: ${selectedPatient?.age ?? '-'} • Gender: ${selectedPatient?.gender ?? '-'}',
+                                  style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                                ),
+                                Text(
+                                  'ID: ${selectedPatient?.id ?? '-'}',
+                                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -241,6 +243,93 @@ class _CheckScanScreenState extends ConsumerState<CheckScanScreen> {
     );
   }
 
+  void _showScanMethodSelector(BuildContext context, dynamic selectedPatient) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Choose Scanning Method',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Poppins',
+                    color: Color(0xFF0D47A1),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    ref.read(scanSessionNotifierProvider.notifier).startScan(
+                          patientId: selectedPatient.id,
+                          isPregnant: isPregnant,
+                        );
+                  },
+                  icon: const Icon(Icons.bluetooth),
+                  label: const Text('Use Smart Glove (BLE)'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D47A1),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _handleCameraScan(context, selectedPatient);
+                  },
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Use Mobile Camera'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0D47A1),
+                    side: const BorderSide(color: Color(0xFF0D47A1)),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleCameraScan(BuildContext context, dynamic selectedPatient) async {
+    try {
+      final picker = ImagePicker();
+      final photo = await picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+      if (photo == null) return; // Cancelled
+      
+      final bytes = await photo.readAsBytes();
+      
+      if (!mounted) return;
+      ref.read(scanSessionNotifierProvider.notifier).startScanWithImage(
+            patientId: selectedPatient.id,
+            isPregnant: isPregnant,
+            imageBytes: bytes,
+          );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to capture image: $e')),
+      );
+    }
+  }
+
   Widget _buildActionButtons(
     BuildContext context,
     ScanSessionNotifierState scanState,
@@ -251,12 +340,7 @@ class _CheckScanScreenState extends ConsumerState<CheckScanScreen> {
         return ElevatedButton.icon(
           onPressed: selectedPatient == null
               ? null
-              : () {
-                  ref.read(scanSessionNotifierProvider.notifier).startScan(
-                        patientId: selectedPatient.id,
-                        isPregnant: isPregnant,
-                      );
-                },
+              : () => _showScanMethodSelector(context, selectedPatient),
           icon: const Icon(Icons.check_circle_outline),
           label: const Text('Start Scan'),
           style: ElevatedButton.styleFrom(
@@ -321,12 +405,7 @@ class _CheckScanScreenState extends ConsumerState<CheckScanScreen> {
             ElevatedButton.icon(
               onPressed: selectedPatient == null
                   ? null
-                  : () {
-                      ref.read(scanSessionNotifierProvider.notifier).startScan(
-                            patientId: selectedPatient.id,
-                            isPregnant: isPregnant,
-                          );
-                    },
+                  : () => _showScanMethodSelector(context, selectedPatient),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry Scan'),
               style: ElevatedButton.styleFrom(

@@ -31,7 +31,8 @@ class Settings(BaseSettings):
     CLOUDINARY_API_SECRET: str = ""
 
     # Model integration
-    MODEL_PROVIDER: Literal["mock"] = "mock"
+    MODEL_PROVIDER: Literal["mock", "pytorch"] = "pytorch"
+    MODEL_PATH: str = "app/services/hb_predictor.pth"
     MOCK_HEMOGLOBIN_VALUE: float = 13.2
 
     # Image processing (pre-model)

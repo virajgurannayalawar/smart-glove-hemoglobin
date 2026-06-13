@@ -24,6 +24,15 @@ abstract class ScanSessionRepository {
     required bool isPregnant,
   });
 
+  Future<Either<Failure, void>> uploadScanImage({
+    required String scanId,
+    required List<int> encryptedImageBytes,
+    required String ownerId,
+    required String patientId,
+    required bool isPregnant,
+    required String gloveKey,
+  });
+
   Future<Either<Failure, ScanPollResponse>> pollResult({
     required String scanId,
     int timeoutSeconds = 60,

@@ -6,7 +6,7 @@ AES_SECRET_KEY ="0a1f5216bac030bab4fc76a9bd36cb54cd7ed8dda6a84c3b00b512c0cc5259f
 
 key = bytes.fromhex(AES_SECRET_KEY)
 
-with open("enrollment.png", "rb") as f:
+with open("scan.png", "rb") as f:
     image_data = f.read()
 
 # PKCS7 padding

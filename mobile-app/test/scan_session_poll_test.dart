@@ -43,6 +43,18 @@ class FakeScanRepository implements ScanSessionRepository {
   }
 
   @override
+  Future<Either<Failure, void>> uploadScanImage({
+    required String scanId,
+    required List<int> encryptedImageBytes,
+    required String ownerId,
+    required String patientId,
+    required bool isPregnant,
+    required String gloveKey,
+  }) async {
+    return const Right(null);
+  }
+
+  @override
   Future<Either<Failure, void>> cancelScan(String scanId) async {
     return const Right(null);
   }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:collection/collection.dart';
 import '../../core/error/failures.dart';
 import '../../data/repositories/patient_repository_impl.dart';
 import '../../domain/entities/patient.dart';
@@ -59,9 +60,18 @@ class PatientNotifier extends StateNotifier<PatientState> {
         );
       },
       (patients) {
+        // Validate that selected patient is still in the list
+        Patient? validSelectedPatient;
+        if (state.selectedPatient != null) {
+          validSelectedPatient = patients.firstWhereOrNull(
+            (p) => p.id == state.selectedPatient!.id,
+          );
+        }
+        
         state = state.copyWith(
           isLoading: false,
           patients: patients,
+          selectedPatient: validSelectedPatient,
         );
       },
     );
@@ -136,6 +146,11 @@ class PatientNotifier extends StateNotifier<PatientState> {
   /// Clear selection
   void clearSelection() {
     state = state.copyWith(clearSelected: true);
+  }
+
+  /// Reset all patient state (used on logout)
+  void reset() {
+    state = PatientState();
   }
 
   /// Refresh patients list

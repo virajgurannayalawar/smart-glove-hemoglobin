@@ -2,6 +2,7 @@ import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:convert';
 
 import '../../core/error/failures.dart';
 import '../../core/network/dio_provider.dart';
@@ -74,6 +75,55 @@ class ScanSessionRepositoryImpl implements ScanSessionRepository {
   }
 
   @override
+  Future<Either<Failure, void>> uploadScanImage({
+    required String scanId,
+    required List<int> encryptedImageBytes,
+    required String ownerId,
+    required String patientId,
+    required bool isPregnant,
+    required String gloveKey,
+  }) async {
+    try {
+      final nowUnix = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      final metadata = {
+        'OwnerId': ownerId,
+        'PatientId': patientId,
+        'CaptureTimestamp': nowUnix,
+        'SyncTimestamp': nowUnix,
+        'IsPregnant': isPregnant,
+      };
+
+      final formData = FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          encryptedImageBytes,
+          filename: 'image.enc',
+          contentType: DioMediaType('application', 'octet-stream'),
+        ),
+        'metadata': jsonEncode(metadata),
+      });
+
+      final response = await dio.post(
+        '/scan/sessions/$scanId/upload',
+        data: formData,
+        options: Options(
+          headers: {
+            'X-Glove-Key': gloveKey,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return const Right(null);
+      }
+      return const Left(ServerFailure('Failed to upload scan image'));
+    } on DioException catch (e) {
+      return _mapDioError(e, 'Failed to upload scan image');
+    } catch (e) {
+      return Left(ServerFailure('Error: $e'));
+    }
+  }
+
+  @override
   Future<Either<Failure, ScanPollResponse>> pollResult({
     required String scanId,
     int timeoutSeconds = 60,
@@ -95,14 +145,17 @@ class ScanSessionRepositoryImpl implements ScanSessionRepository {
         }
 
         if (status == 'completed') {
+          final session = scanBox.get('session_$scanId') as Map?;
+          final localPatientId = session?['patient_id'];
+
           final result = ScanResult.fromJson({
             ...data,
             'ScanId': scanId,
             'ReadingId': data['ReadingId'] ?? data['reading_id'],
+            if (localPatientId != null) 'PatientId': localPatientId,
           });
 
           await scanBox.put('result_$scanId', result.toJson());
-          final session = scanBox.get('session_$scanId') as Map?;
           if (session != null) {
             session['status'] = 'completed';
             await scanBox.put('session_$scanId', session);

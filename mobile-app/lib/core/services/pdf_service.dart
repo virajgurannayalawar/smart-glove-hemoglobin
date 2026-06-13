@@ -2,11 +2,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../../domain/entities/user.dart';
+import '../../domain/entities/patient.dart';
 import '../../domain/entities/scan_result.dart';
 
 class PdfService {
   static Future<void> generateAndSharePdf({
-    required User user,
+    required User scanner,
+    required Patient? patient,
     required ScanResult scan,
   }) async {
     final pdf = pw.Document();
@@ -42,6 +44,19 @@ class PdfService {
                 ),
                 pw.SizedBox(height: 32),
                 
+                // Scanner Details (Top)
+                pw.Text('Scanner Details', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold, color: PdfColors.grey700)),
+                pw.Divider(color: PdfColors.grey300),
+                pw.SizedBox(height: 8),
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text('Name: ${scanner.name}'),
+                    pw.Text('Contact: ${scanner.email}'),
+                  ],
+                ),
+                pw.SizedBox(height: 24),
+                
                 // Patient Details
                 pw.Text('Patient Details', style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
                 pw.Divider(),
@@ -49,16 +64,16 @@ class PdfService {
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Name: ${user.name}'),
-                    pw.Text('Patient ID: ${user.patientId}'),
+                    pw.Text('Name: ${patient?.name ?? 'Unknown'}'),
+                    pw.Text('Patient ID: ${patient?.id ?? scan.patientId ?? 'Unknown'}'),
                   ],
                 ),
                 pw.SizedBox(height: 4),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    pw.Text('Age: ${user.age}'),
-                    pw.Text('Gender: ${user.gender}'),
+                    pw.Text('Age: ${patient?.age ?? 'N/A'}'),
+                    pw.Text('Gender: ${patient?.gender ?? 'N/A'}'),
                   ],
                 ),
                 pw.SizedBox(height: 32),
@@ -117,7 +132,7 @@ class PdfService {
 
     await Printing.sharePdf(
       bytes: await pdf.save(),
-      filename: 'Hb_Report_${user.patientId}_${scan.date.toString().split(' ')[0]}.pdf',
+      filename: 'Hb_Report_${patient?.id ?? scan.patientId ?? 'unknown'}_${scan.date.toString().split(' ')[0]}.pdf',
     );
   }
 }

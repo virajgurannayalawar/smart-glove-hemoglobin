@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/history_provider.dart';
+import '../providers/patient_provider.dart';
+import '../widgets/patient_selection_list.dart';
+import '../../domain/entities/scan_result.dart';
 
 class HistoryScreen extends ConsumerWidget {
   const HistoryScreen({super.key});
@@ -13,31 +16,49 @@ class HistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyState = ref.watch(historyNotifierProvider);
+    final patientState = ref.watch(patientNotifierProvider);
+    final selectedPatient = patientState.selectedPatient;
+
+    final scans = selectedPatient != null
+        ? historyState.scans.where((s) => s.patientId == selectedPatient.id).toList()
+        : const <ScanResult>[];
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        title: const Text(
-          'Scan History',
-          style: TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
+        title: Text(
+          selectedPatient != null ? 'History: ${selectedPatient.name}' : 'Select Patient',
+          style: const TextStyle(fontFamily: 'Poppins', fontWeight: FontWeight.bold),
         ),
+        leading: selectedPatient != null
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () => ref.read(patientNotifierProvider.notifier).clearSelection(),
+              )
+            : null,
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0D47A1),
         elevation: 0,
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(historyNotifierProvider.notifier).fetchHistory(),
-        child: _buildBody(historyState),
-      ),
+      body: selectedPatient == null
+          ? PatientSelectionList(
+              onPatientSelected: (patient) {
+                ref.read(patientNotifierProvider.notifier).selectPatient(patient);
+              },
+            )
+          : RefreshIndicator(
+              onRefresh: () => ref.read(historyNotifierProvider.notifier).fetchHistory(),
+              child: _buildBody(historyState, scans),
+            ),
     );
   }
 
-  Widget _buildBody(HistoryState state) {
-    if (state.isLoading && state.scans.isEmpty) {
+  Widget _buildBody(HistoryState state, List<ScanResult> scans) {
+    if (state.isLoading && scans.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state.errorMessage != null && state.scans.isEmpty) {
+    if (state.errorMessage != null && scans.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -53,11 +74,11 @@ class HistoryScreen extends ConsumerWidget {
       );
     }
 
-    if (state.scans.isEmpty) {
+    if (scans.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          SizedBox(height: 100),
+          const SizedBox(height: 100),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -87,9 +108,9 @@ class HistoryScreen extends ConsumerWidget {
     return ListView.builder(
       padding: const EdgeInsets.all(16.0),
       physics: const AlwaysScrollableScrollPhysics(),
-      itemCount: state.scans.length,
+      itemCount: scans.length,
       itemBuilder: (context, index) {
-        final scan = state.scans[index];
+        final scan = scans[index];
         return Card(
           elevation: 2,
           margin: const EdgeInsets.only(bottom: 12),

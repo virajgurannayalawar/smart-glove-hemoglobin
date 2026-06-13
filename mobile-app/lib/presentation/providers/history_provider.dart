@@ -56,4 +56,9 @@ class HistoryNotifier extends StateNotifier<HistoryState> {
       },
     );
   }
+
+  /// Reset history (used on logout)
+  void reset() {
+    state = HistoryState();
+  }
 }

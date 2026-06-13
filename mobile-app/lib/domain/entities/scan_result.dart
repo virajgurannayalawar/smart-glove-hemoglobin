@@ -1,6 +1,7 @@
 class ScanResult {
   final String id;
   final String? scanId;
+  final String? patientId;
   final DateTime date;
   final double hemoglobinLevel;
   final bool isAnemic;
@@ -11,6 +12,7 @@ class ScanResult {
   ScanResult({
     required this.id,
     this.scanId,
+    this.patientId,
     required this.date,
     required this.hemoglobinLevel,
     required this.isAnemic,
@@ -22,6 +24,7 @@ class ScanResult {
   ScanResult copyWith({
     String? id,
     String? scanId,
+    String? patientId,
     DateTime? date,
     double? hemoglobinLevel,
     bool? isAnemic,
@@ -32,6 +35,7 @@ class ScanResult {
     return ScanResult(
       id: id ?? this.id,
       scanId: scanId ?? this.scanId,
+      patientId: patientId ?? this.patientId,
       date: date ?? this.date,
       hemoglobinLevel: hemoglobinLevel ?? this.hemoglobinLevel,
       isAnemic: isAnemic ?? this.isAnemic,
@@ -46,6 +50,8 @@ class ScanResult {
       'id': id,
       'scanId': scanId,
       'scan_id': scanId,
+      'patientId': patientId,
+      'patient_id': patientId,
       'date': date.toIso8601String(),
       'hemoglobinLevel': hemoglobinLevel,
       'hemoglobin_level': hemoglobinLevel,
@@ -82,6 +88,7 @@ class ScanResult {
               '')
           .toString(),
       scanId: (json['scanId'] ?? json['scan_id'] ?? json['ScanId'])?.toString(),
+      patientId: (json['patientId'] ?? json['patient_id'] ?? json['PatientId'])?.toString(),
       date: timestamp ?? DateTime.now(),
       hemoglobinLevel: (hb is num) ? hb.toDouble() : double.tryParse('$hb') ?? 0,
       isAnemic: json['isAnemic'] ?? json['is_anemic'] ?? json['IsAnemic'] ?? false,
@@ -103,5 +110,5 @@ class ScanResult {
 
   @override
   String toString() =>
-      'ScanResult(id: $id, hb: $hemoglobinLevel, anemic: $isAnemic)';
+      'ScanResult(id: $id, scanId: $scanId, patientId: $patientId, hb: $hemoglobinLevel, anemic: $isAnemic)';
 }
